@@ -133,3 +133,14 @@ poetry.toml
 # downloaded
 downloaded_hf_models
 .env
+
+# Cmake
+*.out
+*.dir
+*.cmake
+*.marks
+*.tcl
+*.pc
+*.txt
+*.check_cache
+Makefile
