@@ -75,7 +75,7 @@ static mmq_q8_1_ds_layout mmq_get_q8_1_ds_layout(const ggml_type type_x) {
         case GGML_TYPE_IQ4_NL:
             return MMQ_Q8_1_DS_LAYOUT_D4;
         default:
-            GGML_ASSERT(false);
+            GGML_ABORT("fatal error");
             break;
     }
 }
@@ -2742,6 +2742,7 @@ struct mmq_args {
     int64_t ne00; int64_t ne01; int64_t stride01;
     int64_t ne10; int64_t ne11; int64_t stride11;
     int64_t ne0;
+    bool use_stream_k;
 };
 
 template<ggml_type type>
@@ -2777,8 +2778,7 @@ static void launch_mul_mat_q(ggml_backend_cuda_context & ctx, const mmq_args & a
     const int ntx = (args.ne11 + mmq_x - 1) / mmq_x;
     const dim3 block_nums_xy_tiling(nty, ntx, 1);
 
-    const bool use_stream_k = cc >= CC_VOLTA && cc < CC_OFFSET_AMD;
-    if (!use_stream_k) {
+    if (!args.use_stream_k) {
         if (args.ne01 % mmq_y == 0) {
             constexpr bool need_check = false;
             mul_mat_q<type, mmq_x, MMQ_NWARPS, need_check><<<block_nums_xy_tiling, block_dims, shmem, stream>>>
@@ -2898,7 +2898,7 @@ void mul_mat_q_case(ggml_backend_cuda_context & ctx, const mmq_args & args, cuda
             break;
         default:
             fprintf(stderr, "mmq_x_best=%d\n", mmq_x_best);
-            GGML_ASSERT(false);
+            GGML_ABORT("fatal error");
             break;
     }
 }

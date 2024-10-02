@@ -312,6 +312,8 @@ class GGUFWriter:
         self.add_key_value(key, val, GGUFValueType.STRING)
 
     def add_array(self, key: str, val: Sequence[Any]) -> None:
+        if len(val) == 0:
+            return
         self.add_key_value(key, val, GGUFValueType.ARRAY)
 
     @staticmethod
@@ -668,6 +670,27 @@ class GGUFWriter:
     def add_expert_weights_scale(self, value: float) -> None:
         self.add_float32(Keys.LLM.EXPERT_WEIGHTS_SCALE.format(arch=self.arch), value)
 
+    def add_swin_norm(self, value: bool) -> None:
+        self.add_bool(Keys.LLM.SWIN_NORM.format(arch=self.arch), value)
+
+    def add_rescale_every_n_layers(self, count: int) -> None:
+        self.add_uint32(Keys.LLM.RESCALE_EVERY_N_LAYERS.format(arch=self.arch), count)
+
+    def add_time_mix_extra_dim(self, dim: int) -> None:
+        self.add_uint32(Keys.LLM.TIME_MIX_EXTRA_DIM.format(arch=self.arch), dim)
+
+    def add_time_decay_extra_dim(self, dim: int) -> None:
+        self.add_uint32(Keys.LLM.TIME_DECAY_EXTRA_DIM.format(arch=self.arch), dim)
+
+    def add_residual_scale(self, value: float) -> None:
+        self.add_float32(Keys.LLM.RESIDUAL_SCALE.format(arch=self.arch), value)
+
+    def add_embedding_scale(self, value: float) -> None:
+        self.add_float32(Keys.LLM.EMBEDDING_SCALE.format(arch=self.arch), value)
+
+    def add_wkv_head_size(self, size: int) -> None:
+        self.add_uint32(Keys.WKV.HEAD_SIZE.format(arch=self.arch), size)
+
     def add_layer_norm_eps(self, value: float) -> None:
         self.add_float32(Keys.Attention.LAYERNORM_EPS.format(arch=self.arch), value)
 
@@ -688,6 +711,9 @@ class GGUFWriter:
 
     def add_sliding_window(self, value: int) -> None:
         self.add_uint32(Keys.Attention.SLIDING_WINDOW.format(arch=self.arch), value)
+
+    def add_attention_scale(self, value: float) -> None:
+        self.add_float32(Keys.Attention.SCALE.format(arch=self.arch), value)
 
     def add_pooling_type(self, value: PoolingType) -> None:
         self.add_uint32(Keys.LLM.POOLING_TYPE.format(arch=self.arch), value.value)
@@ -727,6 +753,9 @@ class GGUFWriter:
 
     def add_ssm_time_step_rank(self, value: int) -> None:
         self.add_uint32(Keys.SSM.TIME_STEP_RANK.format(arch=self.arch), value)
+
+    def add_ssm_dt_b_c_rms(self, value: bool) -> None:
+        self.add_bool(Keys.SSM.DT_B_C_RMS.format(arch=self.arch), value)
 
     def add_tokenizer_model(self, model: str) -> None:
         self.add_string(Keys.Tokenizer.MODEL, model)
@@ -826,6 +855,9 @@ class GGUFWriter:
     def add_eot_token_id(self, id: int) -> None:
         self.add_uint32(Keys.Tokenizer.EOT_ID, id)
 
+    def add_eom_token_id(self, id: int) -> None:
+        self.add_uint32(Keys.Tokenizer.EOM_ID, id)
+
     def _pack(self, fmt: str, value: Any, skip_pack_prefix: bool = False) -> bytes:
         pack_prefix = ''
         if not skip_pack_prefix:
@@ -845,7 +877,14 @@ class GGUFWriter:
             encoded_val = val.encode("utf-8") if isinstance(val, str) else val
             kv_data += self._pack("Q", len(encoded_val))
             kv_data += encoded_val
-        elif vtype == GGUFValueType.ARRAY and isinstance(val, Sequence) and val:
+        elif vtype == GGUFValueType.ARRAY:
+
+            if not isinstance(val, Sequence):
+                raise ValueError("Invalid GGUF metadata array, expecting sequence")
+
+            if len(val) == 0:
+                raise ValueError("Invalid GGUF metadata array. Empty array")
+
             if isinstance(val, bytes):
                 ltype = GGUFValueType.UINT8
             else:
